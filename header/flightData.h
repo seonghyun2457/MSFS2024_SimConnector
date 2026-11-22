@@ -35,3 +35,11 @@ typedef struct FlightData {
     double localizerDeviation   = 0.0;  // 173
     double glideslopeDeviation  = 0.0;  // 174
 } FlightData_t;
+
+// Aircraft constants (refreshed when the aircraft changes)
+typedef struct AircraftInfo {
+    double cruiseSpeedKt      = 0.0;   // DESIGN SPEED VC
+    double stallSpeedCleanKt  = 0.0;   // DESIGN SPEED VS1
+    double stallSpeedFlapsKt  = 0.0;   // DESIGN SPEED VS0
+    double engineMaxRpm       = 0.0;   // ENG MAX RPM:1
+} AircraftInfo_t;

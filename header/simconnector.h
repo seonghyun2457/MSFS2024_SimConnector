@@ -20,12 +20,18 @@
 #include "flightData.h"
 
 enum eDefinitionId : SIMCONNECT_DATA_DEFINITION_ID {
-    DEF_FLIGHT_DATA = 1
+    DEF_FLIGHT_DATA = 1,
+    DEF_AIRCRAFT_INFO = 2
 };
 
-enum eRequestId    : SIMCONNECT_DATA_REQUEST_ID {
+enum eRequestId : SIMCONNECT_DATA_REQUEST_ID {
     REQ_FLIGHT_DATA = 1,
-    REQ_SYSTEM_STATE = 2
+    REQ_SYSTEM_STATE = 2,
+    REQ_AIRCRAFT_INFO = 3
+};
+
+enum eEventId : SIMCONNECT_CLIENT_EVENT_ID {
+    EVT_AIRCRAFT_LOADED = 1
 };
 
 class SimConnector final : public QObject
@@ -46,6 +52,7 @@ signals:
     void connected(const QString& iSimName);
     void disconnected();
     void flightDataReceived(const FlightData_t& iFlightData);
+    void aircraftInfoReceived(const AircraftInfo_t& iAircraftInfo);
 
 private slots:
     void tryConnect();
@@ -56,7 +63,10 @@ private slots:
 private:
     void handleMessage(SIMCONNECT_RECV* iData, const DWORD iDataSize);
     void handleSimObjectData(const SIMCONNECT_RECV_SIMOBJECT_DATA* iData, const DWORD iDataSize);
+    void handleFlightData(const BYTE* iPayload);
+    void handleAircraftInfo(const BYTE* iPayload);
     void registerDataDefinitions();
+    void requestAircraftInfo();
     void handleConnectionLost(const char* iReason);
     void closeHandle();
 

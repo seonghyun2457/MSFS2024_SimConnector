@@ -39,7 +39,7 @@ typedef struct SimVar {
     const char* unit{nullptr};
 } SimVar_t;
 
-constexpr SimVar kSimVars[] = {
+constexpr SimVar kFlightDataVars[] = {
     {"PRESSURE ALTITUDE",              "feet"},
     {"INDICATED ALTITUDE",             "feet"},
     {"AIRSPEED MACH",                  "mach"},
@@ -64,7 +64,25 @@ constexpr SimVar kSimVars[] = {
     {"INCIDENCE ALPHA",                "degrees"}
 };
 
-static_assert(sizeof(RawFlightData) == std::size(kSimVars) * sizeof(double), "RawFlightData and kSimVars are out of sync");
+static_assert(sizeof(RawFlightData) == std::size(kFlightDataVars) * sizeof(double), "RawFlightData and kSimVars are out of sync");
+
+#pragma pack(push, 1)
+struct RawAircraftInfo {
+    double designSpeedVc;
+    double designSpeedVs1;
+    double designSpeedVs0;
+    double engMaxRpm;
+};
+#pragma pack(pop)
+
+constexpr SimVar kAircraftInfoVars[] = {
+    {"DESIGN SPEED VC",  "knots"},
+    {"DESIGN SPEED VS1", "knots"},
+    {"DESIGN SPEED VS0", "knots"},
+    {"ENG MAX RPM:1",    "rpm"},
+};
+
+static_assert(sizeof(RawAircraftInfo) == std::size(kAircraftInfoVars) * sizeof(double), "RawAircraftInfo and kAircraftInfoVars are out of sync");
 } // namespace
 
 SimConnector::SimConnector(QObject* iParent)
@@ -182,6 +200,14 @@ void SimConnector::handleMessage(SIMCONNECT_RECV* iData, const DWORD iDataSize)
         emit connected(name);
         break;
     }
+    case SIMCONNECT_RECV_ID_EVENT_FILENAME: {
+        SIMCONNECT_RECV_EVENT_FILENAME* event = static_cast<SIMCONNECT_RECV_EVENT_FILENAME*>(iData);
+        if (event->uEventID == eEventId::EVT_AIRCRAFT_LOADED) {
+            qInfo() << "Aircraft loaded: " << event->szFileName;
+            requestAircraftInfo();
+        }
+        break;
+    }
     case SIMCONNECT_RECV_ID_SIMOBJECT_DATA:
         handleSimObjectData(static_cast<SIMCONNECT_RECV_SIMOBJECT_DATA*>(iData), iDataSize);
         break;
@@ -192,8 +218,8 @@ void SimConnector::handleMessage(SIMCONNECT_RECV* iData, const DWORD iDataSize)
         handleConnectionLost("MSFS closed");
         break;
     case SIMCONNECT_RECV_ID_EXCEPTION: {
-        auto* ex = static_cast<SIMCONNECT_RECV_EXCEPTION*>(iData);
-        qWarning() << "SimConnect exception" << ex->dwException << "sendID" << ex->dwSendID << "index" << ex->dwIndex;
+        SIMCONNECT_RECV_EXCEPTION* exception = static_cast<SIMCONNECT_RECV_EXCEPTION*>(iData);
+        qWarning() << "SimConnect exception" << exception->dwException << "sendID" << exception->dwSendID << "index" << exception->dwIndex;
         break;
     }
     default:
@@ -203,29 +229,67 @@ void SimConnector::handleMessage(SIMCONNECT_RECV* iData, const DWORD iDataSize)
 
 void SimConnector::registerDataDefinitions()
 {
-    for (const SimVar_t& simVar : kSimVars) {
-        SimConnect_AddToDataDefinition(m_hSimConnect, eDefinitionId::DEF_FLIGHT_DATA, simVar.name, simVar.unit, SIMCONNECT_DATATYPE_FLOAT64);
+    // FLIGHT DATA
+    {
+        // Register flight data
+        for (const SimVar_t& flightDataVar : kFlightDataVars) {
+            SimConnect_AddToDataDefinition(m_hSimConnect, eDefinitionId::DEF_FLIGHT_DATA, flightDataVar.name, flightDataVar.unit, SIMCONNECT_DATATYPE_FLOAT64);
+        }
+
+        // Send the user aircraft's data every simulation frame
+        SimConnect_RequestDataOnSimObject(m_hSimConnect, eRequestId::REQ_FLIGHT_DATA, eDefinitionId::DEF_FLIGHT_DATA, SIMCONNECT_OBJECT_ID_USER, SIMCONNECT_PERIOD_SIM_FRAME);
     }
 
-    // Send the user aircraft's data every simulation frame
-    SimConnect_RequestDataOnSimObject(m_hSimConnect, eRequestId::REQ_FLIGHT_DATA, eDefinitionId::DEF_FLIGHT_DATA, SIMCONNECT_OBJECT_ID_USER, SIMCONNECT_PERIOD_SIM_FRAME);
+    // AIRCRAFT INFO
+    {
+        // Register aircraft info
+        for (const SimVar& aircraftInfoVar : kAircraftInfoVars) {
+            SimConnect_AddToDataDefinition(m_hSimConnect, eDefinitionId::DEF_AIRCRAFT_INFO, aircraftInfoVar.name, aircraftInfoVar.unit, SIMCONNECT_DATATYPE_FLOAT64);
+        }
+
+        // Subscribe aircraft info
+        SimConnect_SubscribeToSystemEvent(m_hSimConnect, eEventId::EVT_AIRCRAFT_LOADED, "AircraftLoaded");
+
+        // Request aircraft info (get notify when aircraft get changed)
+        requestAircraftInfo();
+    }
+}
+
+void SimConnector::requestAircraftInfo()
+{
+    SimConnect_RequestDataOnSimObject(m_hSimConnect, eRequestId::REQ_AIRCRAFT_INFO, eDefinitionId::DEF_AIRCRAFT_INFO, SIMCONNECT_OBJECT_ID_USER, SIMCONNECT_PERIOD_ONCE);
 }
 
 void SimConnector::handleSimObjectData(const SIMCONNECT_RECV_SIMOBJECT_DATA* iData, const DWORD iDataSize)
 {
-    if (iData->dwRequestID != eRequestId::REQ_FLIGHT_DATA) return;
-
     const BYTE* begin   = reinterpret_cast<const BYTE*>(iData);
     const BYTE* payload = reinterpret_cast<const BYTE*>(&iData->dwData);
     const DWORD headerSize = static_cast<DWORD>(payload - begin);
+    const DWORD payloadSize = iDataSize - headerSize;
 
-    if (iDataSize < headerSize + sizeof(RawFlightData)) {
-        qWarning() << "SimObject data too small: " << iDataSize;
-        return;
+    switch (iData->dwRequestID) {
+    case eRequestId::REQ_FLIGHT_DATA:
+        if (payloadSize >= sizeof(RawFlightData)) {
+            handleFlightData(payload);
+        } else {
+            qWarning() << "Flight data too small: " << iDataSize;
+        }
+        break;
+    case eRequestId::REQ_AIRCRAFT_INFO:
+        if (payloadSize >= sizeof(RawAircraftInfo)) {
+            handleAircraftInfo(payload);
+        } else {
+            qWarning() << "Aircraft Info too small: " << iDataSize;
+        }
+        break;
+    default:
+        break;
     }
+}
 
-    const RawFlightData* pRawFlightData = reinterpret_cast<const RawFlightData*>(&iData->dwData);
-
+void SimConnector::handleFlightData(const BYTE* iPayload)
+{
+    const RawFlightData* pRawFlightData = reinterpret_cast<const RawFlightData*>(iPayload);
 
     FlightData_t out;
 
@@ -253,6 +317,20 @@ void SimConnector::handleSimObjectData(const SIMCONNECT_RECV_SIMOBJECT_DATA* iDa
     out.glideslopeDeviation = pRawFlightData->navGsi / 119.0;
 
     emit flightDataReceived(out);
+}
+
+void SimConnector::handleAircraftInfo(const BYTE* iPayload)
+{
+    const RawAircraftInfo* pAircraftInfo = reinterpret_cast<const RawAircraftInfo*>(iPayload);
+
+    AircraftInfo_t out;
+
+    out.cruiseSpeedKt     = pAircraftInfo->designSpeedVc;
+    out.stallSpeedCleanKt = pAircraftInfo->designSpeedVs1;
+    out.stallSpeedFlapsKt = pAircraftInfo->designSpeedVs0;
+    out.engineMaxRpm      = pAircraftInfo->engMaxRpm;
+
+    emit aircraftInfoReceived(out);
 }
 
 void SimConnector::handleConnectionLost(const char *iReason)
