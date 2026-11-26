@@ -2,11 +2,27 @@
 #include <QDebug>
 #include <QElapsedTimer>
 
+#include <windows.h>
 #include "simconnector.h"
+#include "datarecorder.h"
+
+static BOOL WINAPI consoleCtrlHandler(DWORD iCtrlType)
+{
+    switch (iCtrlType) {
+    case CTRL_C_EVENT:
+    case CTRL_BREAK_EVENT:
+    case CTRL_CLOSE_EVENT:
+        QMetaObject::invokeMethod(QCoreApplication::instance(), "quit", Qt::QueuedConnection);
+        return TRUE;
+    default:
+        return FALSE;
+    }
+}
 
 int main(int argc, char *argv[])
 {
-    QCoreApplication a(argc, argv);
+    QCoreApplication app(argc, argv);
+    SetConsoleCtrlHandler(consoleCtrlHandler, TRUE);
 
     SimConnector simconnector;
     QObject::connect(&simconnector, &SimConnector::connected, [](const QString& iName) { qDebug() << "Ready:" << iName;});
@@ -33,8 +49,15 @@ int main(int argc, char *argv[])
                                   .arg(d.radioHeightFt, 0, 'f', 0);
     });
 
+    dataRecorder recorder;
+    QObject::connect(&simconnector, &SimConnector::flightDataReceived, &recorder, &dataRecorder::onFlightData);
+    QObject::connect(&simconnector, &SimConnector::aircraftInfoReceived, &recorder, &dataRecorder::onAircraftInfo);
+    QObject::connect(&simconnector, &SimConnector::connected, &recorder, &dataRecorder::record);
+    QObject::connect(&simconnector, &SimConnector::disconnected, &recorder, &dataRecorder::stopRecording);
+
 
     simconnector.execute();
+    recorder.record();
 
     return QCoreApplication::exec();
 }

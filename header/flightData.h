@@ -4,42 +4,34 @@
 // The comment on each field is the ARINC 429 label (octal) it will be encoded into.
 typedef struct FlightData {
     // Air data
-    double pressureAltitudeFt   = 0.0;  // 203
-    double baroAltitudeFt       = 0.0;  // 204
-    double mach                 = 0.0;  // 205
-    double computedAirspeedKt   = 0.0;  // 206
-    double trueAirspeedKt       = 0.0;  // 210
-    double totalAirTempC        = 0.0;  // 211
-    double verticalSpeedFpm     = 0.0;  // 212
-    double staticAirTempC       = 0.0;  // 213
-    double angleOfAttackDeg     = 0.0;  // 221
+    float pressureAltitudeFt   = 0.f;  // 203
+    float baroAltitudeFt       = 0.f;  // 204
+    float mach                 = 0.f;  // 205
+    float computedAirspeedKt   = 0.f;  // 206
+    float trueAirspeedKt       = 0.f;  // 210
+    float totalAirTempC        = 0.f;  // 211
+    float verticalSpeedFpm     = 0.f;  // 212
+    float staticAirTempC       = 0.f;  // 213
+    float angleOfAttackDeg     = 0.f;  // 221
 
     // Radio altimeter
-    double radioHeightFt        = 0.0;  // 164
+    float radioHeightFt        = 0.f;  // 164
 
     // Inertial / position
-    double latitudeDeg          = 0.0;  // 310
-    double longitudeDeg         = 0.0;  // 311
-    double groundSpeedKt        = 0.0;  // 312
-    double trackTrueDeg         = 0.0;  // 313
-    double headingTrueDeg       = 0.0;  // 314
-    double headingMagDeg        = 0.0;  // 320
-    double pitchDeg             = 0.0;  // 324  (+ = nose up)
-    double rollDeg              = 0.0;  // 325  (+ = right wing down)
+    float latitudeDeg          = 0.f;  // 310
+    float longitudeDeg         = 0.f;  // 311
+    float groundSpeedKt        = 0.f;  // 312
+    float trackTrueDeg         = 0.f;  // 313
+    float headingTrueDeg       = 0.f;  // 314
+    float headingMagDeg        = 0.f;  // 320
+    float pitchDeg             = 0.f;  // 324  (+ = nose up)
+    float rollDeg              = 0.f;  // 325  (+ = right wing down)
 
     // Autopilot selections
-    double selectedHeadingDeg   = 0.0;  // 101
-    double selectedAltitudeFt   = 0.0;  // 102
+    float selectedHeadingDeg   = 0.f;  // 101
+    float selectedAltitudeFt   = 0.f;  // 102
 
     // ILS deviation, normalized -1.0 .. +1.0 (full-scale deflection)
-    double localizerDeviation   = 0.0;  // 173
-    double glideslopeDeviation  = 0.0;  // 174
+    float localizerDeviation   = 0.f;  // 173
+    float glideslopeDeviation  = 0.f;  // 174
 } FlightData_t;
-
-// Aircraft constants (refreshed when the aircraft changes)
-typedef struct AircraftInfo {
-    double cruiseSpeedKt      = 0.0;   // DESIGN SPEED VC
-    double stallSpeedCleanKt  = 0.0;   // DESIGN SPEED VS1
-    double stallSpeedFlapsKt  = 0.0;   // DESIGN SPEED VS0
-    double engineMaxRpm       = 0.0;   // ENG MAX RPM:1
-} AircraftInfo_t;

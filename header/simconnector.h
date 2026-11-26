@@ -18,6 +18,8 @@
 #include <QWinEventNotifier>
 
 #include "flightData.h"
+#include "aircraftInfo.h"
+
 
 enum eDefinitionId : SIMCONNECT_DATA_DEFINITION_ID {
     DEF_FLIGHT_DATA = 1,

@@ -9,28 +9,28 @@ namespace
 // Raw layout received from MSFS. Must match kSimVars below, entry for entry.
 #pragma pack(push, 1)
 struct RawFlightData {
-    double pressureAltitude;
-    double indicatedAltitude;
-    double mach;
-    double ias;
-    double tas;
-    double tat;
-    double verticalSpeed;
-    double sat;
-    double radioHeight;
-    double latitude;
-    double longitude;
-    double groundSpeed;
-    double trackTrue;
-    double headingTrue;
-    double headingMag;
-    double pitch;          // MSFS: + = nose DOWN
-    double bank;           // MSFS: + = LEFT wing down
-    double apHeading;
-    double apAltitude;
-    double navCdi;         // -127 .. +127
-    double navGsi;         // -119 .. +119
-    double angleOfAttack;
+    float pressureAltitude;
+    float indicatedAltitude;
+    float mach;
+    float ias;
+    float tas;
+    float tat;
+    float verticalSpeed;
+    float sat;
+    float radioHeight;
+    float latitude;
+    float longitude;
+    float groundSpeed;
+    float trackTrue;
+    float headingTrue;
+    float headingMag;
+    float pitch;          // MSFS: + = nose DOWN
+    float bank;           // MSFS: + = LEFT wing down
+    float apHeading;
+    float apAltitude;
+    float navCdi;         // -127 .. +127
+    float navGsi;         // -119 .. +119
+    float angleOfAttack;
 };
 #pragma pack(pop)
 
@@ -64,14 +64,14 @@ constexpr SimVar kFlightDataVars[] = {
     {"INCIDENCE ALPHA",                "degrees"}
 };
 
-static_assert(sizeof(RawFlightData) == std::size(kFlightDataVars) * sizeof(double), "RawFlightData and kSimVars are out of sync");
+static_assert(sizeof(RawFlightData) == std::size(kFlightDataVars) * sizeof(float), "RawFlightData and kSimVars are out of sync");
 
 #pragma pack(push, 1)
 struct RawAircraftInfo {
-    double designSpeedVc;
-    double designSpeedVs1;
-    double designSpeedVs0;
-    double engMaxRpm;
+    float designSpeedVc;
+    float designSpeedVs1;
+    float designSpeedVs0;
+    float engMaxRpm;
 };
 #pragma pack(pop)
 
@@ -82,7 +82,7 @@ constexpr SimVar kAircraftInfoVars[] = {
     {"ENG MAX RPM:1",    "rpm"},
 };
 
-static_assert(sizeof(RawAircraftInfo) == std::size(kAircraftInfoVars) * sizeof(double), "RawAircraftInfo and kAircraftInfoVars are out of sync");
+static_assert(sizeof(RawAircraftInfo) == std::size(kAircraftInfoVars) * sizeof(float), "RawAircraftInfo and kAircraftInfoVars are out of sync");
 } // namespace
 
 SimConnector::SimConnector(QObject* iParent)
@@ -233,7 +233,7 @@ void SimConnector::registerDataDefinitions()
     {
         // Register flight data
         for (const SimVar_t& flightDataVar : kFlightDataVars) {
-            SimConnect_AddToDataDefinition(m_hSimConnect, eDefinitionId::DEF_FLIGHT_DATA, flightDataVar.name, flightDataVar.unit, SIMCONNECT_DATATYPE_FLOAT64);
+            SimConnect_AddToDataDefinition(m_hSimConnect, eDefinitionId::DEF_FLIGHT_DATA, flightDataVar.name, flightDataVar.unit, SIMCONNECT_DATATYPE_FLOAT32);
         }
 
         // Send the user aircraft's data every simulation frame
@@ -244,7 +244,7 @@ void SimConnector::registerDataDefinitions()
     {
         // Register aircraft info
         for (const SimVar& aircraftInfoVar : kAircraftInfoVars) {
-            SimConnect_AddToDataDefinition(m_hSimConnect, eDefinitionId::DEF_AIRCRAFT_INFO, aircraftInfoVar.name, aircraftInfoVar.unit, SIMCONNECT_DATATYPE_FLOAT64);
+            SimConnect_AddToDataDefinition(m_hSimConnect, eDefinitionId::DEF_AIRCRAFT_INFO, aircraftInfoVar.name, aircraftInfoVar.unit, SIMCONNECT_DATATYPE_FLOAT32);
         }
 
         // Subscribe aircraft info
